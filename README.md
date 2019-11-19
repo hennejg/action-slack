@@ -5,7 +5,7 @@
   <a href="https://github.com/8398a7/action-slack"><img alt="GitHub Actions status" src="https://github.com/8398a7/action-slack/workflows/Slack%20Mainline/badge.svg"></a>
 </p>
 
-This notifier is a fork of [8398a7/action-slack](/8398a7/action-slack). However, its goals have diverged quite a bit from whe original, which is why I've decided to keept is separate. Its main differences are at this time:
+This notifier is a fork of [8398a7/action-slack](/8398a7/action-slack). However, its goals have diverged quite a bit from whe original, which is why I've decided to keepgit rem is separate. Its main differences are at this time:
 * Working support for the legacy webhook features which lets allow setting the author name and the autor-emoji-icon. (I was never able to get this to work in the original version)
 * More compact default templates while retaining all relevant information
 
