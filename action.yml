@@ -40,5 +40,5 @@ runs:
   using: node12
   main: lib/main.js
 branding:
-  icon: slack
+  icon: message-circle
   color: purple
