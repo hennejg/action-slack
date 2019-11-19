@@ -4,41 +4,71 @@ on:
     branches:
       - master
       - v2
+      - just_playing_around
 
 jobs:
   notification:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v1
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test
+      - name: check for uncommitted changes
+        # Ensure no changes, but ignore node_modules dir since dev/fresh ci deps installed.
+        run: |
+          git diff --exit-code --stat -- . ':!node_modules' \
+          || (echo "##[error] found changed files after build. please 'npm run build && npm run format'" \
+                   "and check in all changes" \
+              && exit 1)
+      - name: check for uncommitted changes
+        # Ensure no changes, but ignore node_modules dir since dev/fresh ci deps installed.
+        run: |
+          git diff --exit-code --stat -- . ':!node_modules' \
+          || (echo "##[error] found changed files after build. please 'npm run build && npm run format'" \
+                   "and check in all changes" \
+              && exit 1)
+
+      - name: Bells and whistles
+        uses: ./
+        with:
+          username: foobar
+          text: Some additional text
+          icon_emoji: octocat
+          exclude_fields: repo, action
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}      
       - name: Succeeded Check
-        uses: 8398a7/action-slack@v2
+        uses: ./
         with:
           status: success
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       - name: Failed Check
-        uses: 8398a7/action-slack@v2
+        uses: ./
         with:
           status: failure
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       - name: Cancelled Check
-        uses: 8398a7/action-slack@v2
+        uses: ./
         with:
           status: cancelled
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       - name: Check
-        uses: 8398a7/action-slack@v2
+        uses: ./
         with:
           status: ${{ job.status }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       - name: Custom Field Check
-        uses: 8398a7/action-slack@v2
+        uses: ./
         with:
           status: custom
           payload: |

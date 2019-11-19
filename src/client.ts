@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+import Octokit from '@octokit/rest';
 import { IncomingWebhook, IncomingWebhookSendArguments } from '@slack/webhook';
 
 interface With {
@@ -11,22 +12,17 @@ interface With {
   icon_emoji: string;
   icon_url: string;
   channel: string;
+  exclude_fields: string[]
 }
 
 export class Client {
-  private webhook: IncomingWebhook;
   private github?: github.GitHub;
   private with: With;
+  private webhook: IncomingWebhook;
 
-  constructor(props: With) {
+  constructor(props: With, github?: github.GitHub) {
     this.with = props;
-
-    if (props.status !== 'custom') {
-      if (process.env.GITHUB_TOKEN === undefined) {
-        throw new Error('Specify secrets.GITHUB_TOKEN');
-      }
-      this.github = new github.GitHub(process.env.GITHUB_TOKEN);
-    }
+    this.github = github;
 
     if (process.env.SLACK_WEBHOOK_URL === undefined) {
       throw new Error('Specify secrets.SLACK_WEBHOOK_URL');
@@ -37,7 +33,7 @@ export class Client {
   public async success(text: string) {
     const template = await this.payloadTemplate();
     template.attachments[0].color = 'good';
-    template.text += ':white_check_mark: Succeeded Github Actions\n';
+    template.text += `:heavy_check_mark: Successful GitHub Action ${this.actionLink}\n`;
     template.text += text;
 
     this.send(template);
@@ -49,7 +45,7 @@ export class Client {
     if (this.with.only_mention_fail !== '') {
       template.text += `<!${this.with.only_mention_fail}> `;
     }
-    template.text += ':no_entry: Failed Github Actions\n';
+    template.text += `:no_entry: Failed GitHub Action ${this.actionLink}\n`;
     template.text += text;
 
     this.send(template);
@@ -58,7 +54,7 @@ export class Client {
   public async cancel(text: string) {
     const template = await this.payloadTemplate();
     template.attachments[0].color = 'warning';
-    template.text += ':warning: Canceled Github Actions\n';
+    template.text += `:warning: Canceled Github Action ${this.actionLink}\n`;
     template.text += text;
 
     this.send(template);
@@ -66,48 +62,62 @@ export class Client {
 
   public async send(payload: string | IncomingWebhookSendArguments) {
     core.debug(JSON.stringify(github.context, null, 2));
+    const toSend = JSON.stringify(payload, null, 2);
+    console.log('Sending message: ' + toSend);
+    
     await this.webhook.send(payload);
-    core.debug('send message');
+  }
+
+  private get actionLink() {
+    const { sha } = github.context;
+    const { owner, repo } = github.context.repo;
+    return `<https://github.com/${owner}/${repo}/commit/${sha}/checks|${github.context.workflow}>`;
   }
 
   private async payloadTemplate() {
+    if (this.github === undefined) {
+      throw Error('Specify secrets.GITHUB_TOKEN');
+    }
+
     let text = '';
     if (this.with.mention !== '') {
       text += `<!${this.with.mention}> `;
     }
 
-    return {
-      text: text,
-      attachments: [
-        {
-          color: '',
-          author_name: this.with.author_name,
-          username: this.with.username,
-          icon_emoji: this.with.icon_emoji,
-          icon_url: this.with.icon_url,
-          channel: this.with.channel,
-          fields: await this.fields(),
-        },
-      ],
-    };
-  }
-
-  private async fields() {
-    if (this.github === undefined) {
-      throw Error('Specify secrets.GITHUB_TOKEN');
-    }
     const { sha } = github.context;
     const { owner, repo } = github.context.repo;
     const commit = await this.github.repos.getCommit({ owner, repo, ref: sha });
     const { author } = commit.data.commit;
 
+    return {
+      text: text,
+      icon_emoji: this.with.icon_emoji,
+      icon_url: this.with.icon_url,
+      username: this.with.username,
+      attachments: [
+        {
+          color: '',
+          author_name: this.with.author_name !== '__COMMITTER__' ? this.with.author_name : `${author.name}<${author.email}>`,
+          channel: this.with.channel,
+          fields: await this.fields(commit),
+        },
+      ],
+    };
+  }
+
+  private fields(commit: Octokit.Response<Octokit.ReposGetCommitResponse>) {
+    if (this.github === undefined) {
+      throw Error('Specify secrets.GITHUB_TOKEN');
+    }
+    const { author } = commit.data.commit;
+
     return [
-      this.repo,
       {
         title: 'message',
         value: commit.data.commit.message,
-        short: true,
+        short: false,
       },
+      this.repo,
       this.commit,
       {
         title: 'author',
@@ -118,7 +128,7 @@ export class Client {
       this.eventName,
       this.ref,
       this.workflow,
-    ];
+    ].filter(v => !this.with.exclude_fields.includes(v.title));
   }
 
   private get commit() {
@@ -127,7 +137,7 @@ export class Client {
 
     return {
       title: 'commit',
-      value: `<https://github.com/${owner}/${repo}/commit/${sha}|${sha}>`,
+      value: `<https://github.com/${owner}/${repo}/commit/${sha}|${sha.substring(0,6)}...>`,
       short: true,
     };
   }
@@ -148,7 +158,7 @@ export class Client {
 
     return {
       title: 'action',
-      value: `<https://github.com/${owner}/${repo}/commit/${sha}/checks|action>`,
+      value: this.actionLink,
       short: true,
     };
   }

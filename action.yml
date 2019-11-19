@@ -1,9 +1,10 @@
-name: action-slack
-description: You can notify slack of GitHub Actions.
-author: 8398a7
+name: slack-build-notifier
+description: A Slack-notifier focused on the build status
+author: hennejg (based on 8398a7/action-slack)
 inputs:
   status:
     description: Specify success or failure or cancelled or custom.
+    default: ${{ job.status }}
   payload:
     description: |
       json payload
@@ -16,7 +17,7 @@ inputs:
     default: ""
   author_name:
     description: User name for slack notification.
-    default: 8398a7@action-slack
+    default: __COMMITTER__
   text:
     description: You can overwrite text.
     default: ""
@@ -32,9 +33,12 @@ inputs:
   channel:
     description: override the legacy integration's default channel. This should be an ID, such as C8UJ12P4P.
     default: ""
+  exclude_fields:
+    description: a comma-separated list of fields to hide from the template
+    default: author, action, workflow
 runs:
   using: node12
   main: lib/main.js
 branding:
-  icon: bell
-  color: blue
+  icon: slack
+  color: purple
