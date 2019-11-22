@@ -94,12 +94,12 @@ export class Client {
       icon_emoji: this.with.icon_emoji,
       icon_url: this.with.icon_url,
       username: this.with.username,
+      channel: this.with.channel,
       attachments: [
         {
           color: '',
           author_name: this.with.author_name !== '__COMMITTER__' ? this.with.author_name : `${author.name}<${author.email}>`,
-          channel: this.with.channel,
-          fields: await this.fields(commit),
+          fields: this.fields(commit),
         },
       ],
     };
